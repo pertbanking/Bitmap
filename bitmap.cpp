@@ -7,8 +7,6 @@
 
 typedef unsigned char uchar_t;
 
-const int MIN_RGB=0;
-const int MAX_RGB=255;
 const int BMP_MAGIC_ID=2;
 
 
@@ -48,6 +46,20 @@ struct bmpfile_dib_info
   uint32_t num_colors;            ///< The number of color indices used in the color table.
   uint32_t num_important_colors;  ///< The number of colors used by the bitmap.
 };
+
+/**
+ * @brief The color table for the monochrome image palette. 
+ * 
+ * Whatever 24-bit color is specified in the palette in the BMP will show up in
+ * the actual image.
+ */
+struct bmpfile_color_table
+{
+    uint8_t red;
+    uint8_t green;
+    uint8_t blue;
+    uint8_t reserved; ///< should be 0.
+}
 
 
 /**
@@ -105,39 +117,66 @@ void Bitmap::open(std::string filename)
                 dib_info.height = -dib_info.height;
             }
 
-            // Only support for 24-bit images
-            if (dib_info.bits_per_pixel != 24)
+            // Only support for 1-bit images
+            if (dib_info.bits_per_pixel != 1)
             {
-                std::cout<<filename<<" uses "<<dib_info.bits_per_pixel
-                         <<"bits per pixel (bit depth). Bitmap only supports 24bit.\n";
+                std::cout << filename << " uses " << dib_info.bits_per_pixel
+                          << "bits per pixel (bit depth). Bitmap only supports "
+                          << "1bit (monochrome).\n";
             }
 
             // No support for compressed images
             if (dib_info.compression != 0)
             {
-                std::cout<<filename<<" is compressed. "
-                         <<"Bitmap only supports uncompressed images.\n";
+                std::cout << filename << " is compressed. "
+                          << "Bitmap only supports uncompressed images.\n";
+            }
+
+            bmpfile_color_table colors;
+            file.read((char*)(&colors), sizeof(colors));
+            if (colors.reserved != 0)
+            {
+                std::cout << filename << " does not have a good color palette for "
+                          << "monochrome display.\n"
             }
 
             file.seekg(header.bmp_offset);
 
             // Read the pixels for each row and column of Pixels in the image.
-            for (int row = 0; row < dib_info.height; row++)
+            for (int row = 0; row < dib_info.height; ++row)
             {
                 std::vector <Pixel> row_data;
 
-                for (int col = 0; col < dib_info.width; col++)
+                // In a monochrome image, each bit is a pixel.
+                // First we cover all bits except the ones inside the last byte.
+                for (int col = 0; col < dib_info.width / 8; ++col)
                 {
-                    int blue = file.get();
-                    int green = file.get();
-                    int red = file.get();
+                    uint8_t current_byte = file.get();
 
-                    row_data.push_back( Pixel(red, green, blue) );
+                    for (int bit = 0; bit < 8; ++bit)
+                    {
+                        bool high = (current_byte & (1 << bit)) != 0;
+                        row_data.push_back( Pixel(high) );
+                    }
+                }
+                // Then we cover the bits we missed at the end.
+                if (dib_info.width % 8 != 0)
+                {
+                    uint8_t last_byte = file.get();
+                    for (int bit = 0; bit < dib_info.width % 8; ++bit)
+                    {
+                        bool high = (current_byte & (1 << bit)) != 0;
+                        row_data.push_back( Pixel(high) );
+                    }
                 }
 
                 // Rows are padded so that they're always a multiple of 4
-                // bytes. This line skips the padding at the end of each row.
-                file.seekg(dib_info.width % 4, std::ios::cur);
+                // bytes. These lines skip the padding at the end of each row.
+                int bytes_traversed = dib_info.width / 8 + (dib_info.width % 8 != 0)? 1 : 0;
+                if (bytes_traversed % 4 != 0)
+                {
+                    file.seekg(4 - (bytes_traversed % 4), std::ios::cur);
+                }
 
                 if (flip)
                 {
@@ -169,8 +208,8 @@ void Bitmap::save(std::string filename)
 
     if (file.fail())
     {
-        std::cout<<filename<<" could not be opened for editing. "
-                 <<"Is it already open by another program or is it read-only?\n";
+        std::cout << filename << " could not be opened for editing. "
+                  << "Is it already open by another program or is it read-only?\n";
         
     }
     else if( !isImage() )

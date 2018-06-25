@@ -6,21 +6,21 @@
 
 // ----------------------------------------------------------------------------
 /**
- * Represents a single Pixel in the image. A Pixel has red, green, and blue
- * components that are mixed to form a color. Each of these values can range
- * from 0 to 255
+ * Represents a single Pixel in the image. A Pixel has a single bit value that
+ * is a zero (white) or a one (black). So, this class essentially encapsulates 
+ * a 2D array of bools.
 **/
 class Pixel
 {
 public:
 	// Stores the individual color components.
-	int red, green, blue;
+	bool on;
 
 	// Initializes a Pixel with a default black color.
-	Pixel() : red(0), green(0), blue(0) { }
+	Pixel() : on(false) { }
 
 	// Initializes a color Pixel with the specified RGB values.
-	Pixel(int r, int g, int b) : red(r), green(g), blue(b) { }
+	Pixel(bool set) : on(set) { }
 };
 
 // ----------------------------------------------------------------------------

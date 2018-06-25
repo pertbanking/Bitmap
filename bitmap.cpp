@@ -95,6 +95,7 @@ void Bitmap::open(std::string filename)
         }
         else
         {
+            // TODO: Put this block where it belongs.
             // clear data if already holds information
             for(int i = 0; i < pixels.size(); ++i)
             {
@@ -132,6 +133,7 @@ void Bitmap::open(std::string filename)
                           << "Bitmap only supports uncompressed images.\n";
             }
 
+            // Read the color table
             bmpfile_color_table colors;
             file.read((char*)(&colors), sizeof(colors));
             if (colors.reserved != 0)
@@ -196,9 +198,10 @@ void Bitmap::open(std::string filename)
 // ----------------------------------------------------------------------------
 /**
  * Saves the current image, represented by the matrix of pixels, as a
- * Windows BMP file with the name provided by the parameter. File extension
- * is not forced but should be .bmp. Any errors will cout and will NOT 
- * attempt to save the file.
+ * monochrome Windows BMP file with the name provided by the parameter.
+ * Color palette for the monochrome color will be black (0x000000). 
+ * File extension is not forced but should be .bmp. Any errors will cout 
+ * and will NOT attempt to save the file.
  *
  * @param name of the filename to be written as a bmp image
 **/
@@ -214,7 +217,7 @@ void Bitmap::save(std::string filename)
     }
     else if( !isImage() )
     {
-        std::cout<<"Bitmap cannot be saved. It is not a valid image.\n";
+        std::cout << "Bitmap cannot be saved. It is not a valid image.\n";
     }
     else
     {
@@ -223,26 +226,40 @@ void Bitmap::save(std::string filename)
         magic.magic[0] = 'B';
         magic.magic[1] = 'M';
         file.write((char*)(&magic), sizeof(magic));
+
         bmpfile_header header = { 0 };
-        header.bmp_offset = sizeof(bmpfile_magic)
-                + sizeof(bmpfile_header) + sizeof(bmpfile_dib_info);
+        header.bmp_offset = sizeof(bmpfile_magic) + sizeof(bmpfile_header)
+                + sizeof(bmpfile_dib_info) + sizeof(bmpfile_color_table);
+        // vv This line is suspect. Not sure if the compiler will optimize the "/32)*8"
         header.file_size = header.bmp_offset
-                + (pixels.size() * 3 + pixels[0].size() % 4) * pixels.size();
+                + (pixels[0].size() / 32) * 8 + (pixels[0].size() % 32 != 0)? 4 : 0;
         file.write((char*)(&header), sizeof(header));
         bmpfile_dib_info dib_info = { 0 };
         dib_info.header_size = sizeof(bmpfile_dib_info);
         dib_info.width = pixels[0].size();
         dib_info.height = pixels.size();
         dib_info.num_planes = 1;
-        dib_info.bits_per_pixel = 24;
+        dib_info.bits_per_pixel = 1;  // monochrome
         dib_info.compression = 0;
         dib_info.bmp_byte_size = 0;
-        dib_info.hres = 2835;
-        dib_info.vres = 2835;
-        dib_info.num_colors = 0;
+        dib_info.hres = 200;
+        dib_info.vres = 200;
+        dib_info.num_colors = 1;
         dib_info.num_important_colors = 0;
         file.write((char*)(&dib_info), sizeof(dib_info));
 
+        bmpfile_color_table colors = { 0 };
+        colors.red = 0;
+        colors.green = 0;
+        colors.blue = 0;
+        colors.reserved = 0;
+        file.write((char*)(&colors), sizeof(colors));
+
+
+        // TODO: Rewrite for monochrome!!
+        // 
+        // *-_8-*_8-*_88--8*_8--***-8*-8-**-8-*_-__
+        // 
         // Write each row and column of Pixels into the image file -- we write
         // the rows upside-down to satisfy the easiest BMP format.
         for (int row = pixels.size() - 1; row >= 0; row--)

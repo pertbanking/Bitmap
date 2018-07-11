@@ -4,6 +4,7 @@
 
 #include <cassert>
 #include <iostream>
+#include <algorithm>
 #include <vector>
 
 int main(int args, char* argv[])
@@ -15,16 +16,11 @@ int main(int args, char* argv[])
     PixelMatrix pixels = lil_mario_shroom.toPixelMatrix();
 
     // Just flip vertically and see what happens.
-    for (int i = 0; i < pixels.size(); ++i)
-    {
-        int opposite = pixels.size() - 1 - i;
-        std::vector<Pixel> tmp = pixels[i];
-        pixels[i] = pixels[opposite];
-        pixels[opposite] = tmp;
-    }
+    std::reverse(std::begin(pixels), std::end(pixels));
 
     lil_mario_shroom.fromPixelMatrix(pixels);
 
+    lil_mario_shroom.save("REVERSED_monochrome_image.bmp");
     lil_mario_shroom.save("REVERSED_monochrome_image.bmp.hex");
 
 

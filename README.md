@@ -1,44 +1,58 @@
-# C++ Bitmap header files
+@mainpage
+
+# C++ Bitmap [monochrome] header files
+
+This is a small library for writing monochrome bitmap files.
+
+Monochromes can be used for several different things. However, you may want
+to use this library as an image writer for a color threshold program. Or, maybe
+you want to borrow code from here to make your own Bitmap library more 
+diverse. Either way, monochromes can be quite pretty--- and they are extremely
+small!
+
+__Mention__
+This library was initially started by Kevin Buffardi, Ph.D at California 
+State University, Chico. See his original repository here:
+
+https://github.com/kbuffardi/Bitmap
+
+
 
 ## Getting Started
 
 1. Clone this repository onto your development environment
 2. Copy `bitmap.h` and `bitmap.cpp` to your project directory
-3. In your C++ program file, include the header file with 
-`#include "bitmap.h"`
+3. In your C++ program file, include the header file `bitmap.h`
 4. Declare your variables of type *Bitmap* or *Pixel*.
 
 See the guides for the Bitmap and Pixel data types below.
 
 ## Pixel
 
-Represents a single Pixel in the image. A Pixel has red, green, and blue
-components that are mixed to form a color. Each of these values can range
-from 0 to 255.
+Represents a single Pixel in the image. A Pixel is either on or off, 
+essentially a `bool`, and that's exactly what it wraps--- one `bool`.
 
-By default, a pixel is black with 0 red, 0 green, and 0 blue. There is an 
-overloaded constructor that takes three integer arguments for the red, green,
-and blue components.
+By default, a pixel is off. Its `bool` (`on`) is accessible as a public member.
+See Pixel.
 
-Each component is mutable using the member variables `red` `green` and `blue`.
-They should have values between 0 and 255 but this class does *not* validate
-the component values as long as they are assigned integers.
 
 ### Example of use
 
 ```
-Pixel purpleDot;
+Pixel dot(true);
 
-purpleDot.red = 255;
-purpleDot.green = 0;
-purpleDot.blue = 255;
+// ...
+
+dot.on = false;
 ```
+
 
 ## Bitmap
 
 Represents a bitmap where a grid of pixels (in row-major order)
 describes the color of each pixel within the image. Limited to Windows BMP
-formatted images with no compression and 24 bit color depth.
+formatted images with no compression and 1 bit color depth.
+
 
 ### Functions
 
@@ -47,14 +61,14 @@ formatted images with no compression and 24 bit color depth.
 `void open(std::string)`
 
 *Opens a file as its name is provided and reads pixel-by-pixel the colors
-into a matrix of RGB pixels. Any errors will cout but will result in an
+into a matrix of pixels. Any errors will cout but will result in an
 empty matrix (with no rows and no columns).*
 
 *parameter: name of the filename to be opened and read as a matrix of pixels*
 
 #### save
 
-`void save(std::string)`
+`void save(std::string) const`
 
 *Saves the current image, represented by the matrix of pixels, as a
 Windows BMP file with the name provided by the parameter. File extension
@@ -63,22 +77,21 @@ attempt to save the file.*
 
 #### isImage
 
-`bool isImage()`
+`bool isImage() const`
 
 *Validates whether or not the current matrix of pixels represents a
-proper image with non-zero-size rows and consistent non-zero-size
-columns for each row. In addition, each pixel in the matrix is validated
-to have red, green, and blue components with values between 0 and 255*
+proper image. Tests for non-zero-size rows and consistent non-zero-size columns 
+for each row.*
 
 *return: boolean value of whether or not the matrix is a valid image*
 
 #### toPixelMatrix
 
-`std::vector <std::vector <Pixel> > toPixelMatrix()`
+`std::vector <std::vector <Pixel> > toPixelMatrix() const`
 
 *Provides a vector of vector of pixels representing the bitmap*
 
-*return: the bitmap image, represented by a matrix of RGB pixels*
+*return: the bitmap image, represented by a matrix of pixels*
 
 #### fromPixelMatrix
 
@@ -94,6 +107,7 @@ image.*
 ### Example of use
 
 ```
+#include <algorithm>
 #include <vector>
 #include "bitmap.h"
 
@@ -103,7 +117,6 @@ int main()
 {
   Bitmap image;
   vector <vector <Pixel> > bmp;
-  Pixel rgb;
 
   //read a file example.bmp and convert it to a pixel matrix
   image.open("example.bmp");
@@ -111,23 +124,14 @@ int main()
   //verify that the file opened was a valid image
   bool validBmp = image.isImage();
 
-  if( validBmp == true )
+  // Flip example.bmp vertically.
+  for (int i = 0; i < pixels.size(); ++i)
   {
-    bmp = image.toPixelMatrix();
-  
-
-    //take all the redness out of the top-left pixel
-    rgb = bmp[0][0];
-    rgb.red = 0; 
-
-    //put changed image back into matrix, update the bitmap and save it
-    bmp[0][0] = rgb;
-    image.fromPixelMatrix(bmp);
-    image.save("example.bmp");
+    int opposite = bmp.size() - 1 - i;
+    std::vector<Pixel> tmp = bmp[i];
+    bmp[i] = bmp[opposite];
+    bmp[opposite] = tmp;
   }
   return 0;
 }
 ```
-
-    
-

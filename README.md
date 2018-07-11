@@ -1,4 +1,4 @@
-@mainpage
+[//]: # @mainpage
 
 # C++ Bitmap [monochrome] header files
 
@@ -11,8 +11,10 @@ diverse. Either way, monochromes can be quite pretty--- and they are extremely
 small!
 
 __Mention__
+
 This library was initially started by Kevin Buffardi, Ph.D at California 
-State University, Chico. See his original repository here:
+State University, Chico. All I did was specialize it for monochrome bitmaps.
+See his original repository here:
 
 https://github.com/kbuffardi/Bitmap
 

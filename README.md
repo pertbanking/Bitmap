@@ -4,11 +4,11 @@
 
 This is a small library for writing monochrome bitmap files.
 
-Monochromes can be used for several different things. However, you may want
-to use this library as an image writer for a color threshold program. Or, maybe
+Monochromes can be used for several different things. You may want
+to use this library as an image writer for a color threshold program, or, maybe
 you want to borrow code from here to make your own Bitmap library more 
-diverse. Either way, monochromes can be quite pretty--- and they are extremely
-small!
+diverse. For whatever you use them for, monochromes can be quite pretty--- and 
+they are extremely small!
 
 __Mention__
 
@@ -108,8 +108,13 @@ image.*
 
 ### Example of use
 
+Since monochromes online seem to be nonexistent, I have created one and 
+attached it to this repository, entitled "monochrome_image.bmp". Feel free to 
+view it for an example or for testing. 
+
 ```
 #include <algorithm>
+#include <memory>
 #include <vector>
 #include "bitmap.h"
 
@@ -126,14 +131,15 @@ int main()
   //verify that the file opened was a valid image
   bool validBmp = image.isImage();
 
-  // Flip example.bmp vertically.
-  for (int i = 0; i < pixels.size(); ++i)
-  {
-    int opposite = bmp.size() - 1 - i;
-    std::vector<Pixel> tmp = bmp[i];
-    bmp[i] = bmp[opposite];
-    bmp[opposite] = tmp;
-  }
+  //pull the Pixel matrix from the loaded file
+  bmp = image.toPixelMatrix();
+
+  //flip example.bmp vertically.
+  std::reverse(std::begin(bmp), std::end(bmp));
+
+  //save the image
+  image.save("reversed.bmp");
+
   return 0;
 }
 ```

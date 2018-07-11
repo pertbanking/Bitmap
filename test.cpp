@@ -10,18 +10,16 @@
 int main(int args, char* argv[])
 {
     Bitmap lil_mario_shroom;
-    lil_mario_shroom.open("ex_monochrome_image.bmp");
+    lil_mario_shroom.open("monochrome_image.bmp");
     assert(lil_mario_shroom.isImage());
 
     PixelMatrix pixels = lil_mario_shroom.toPixelMatrix();
 
-    // Just flip vertically and see what happens.
     std::reverse(std::begin(pixels), std::end(pixels));
 
     lil_mario_shroom.fromPixelMatrix(pixels);
 
     lil_mario_shroom.save("REVERSED_monochrome_image.bmp");
-    lil_mario_shroom.save("REVERSED_monochrome_image.bmp.hex");
 
 
     Bitmap test_image;
@@ -33,7 +31,7 @@ int main(int args, char* argv[])
     }
     test_image.fromPixelMatrix(test_pixels);
     assert(test_image.isImage());
-    test_image.save("test_image.bmp.hex");
+    test_image.save("test_image.bmp");
 
     return 0;
 }

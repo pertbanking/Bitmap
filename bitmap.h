@@ -10,16 +10,15 @@
  * is a zero (white) or a one (black). So, this class essentially encapsulates 
  * a 2D array of bools.
 **/
-class Pixel
+struct Pixel
 {
-public:
-	// Stores the individual color components.
+	/// Stores the individual color components.
 	bool on;
 
-	// Initializes a Pixel with a default black color.
+	/// Initializes a Pixel with a default off.
 	Pixel() : on(false) { }
 
-	// Initializes a color Pixel with the specified RGB values.
+	/// Initializes a color Pixel with the specified on/off value.
 	Pixel(bool set) : on(set) { }
 };
 
@@ -44,9 +43,9 @@ class Bitmap
      * into a matrix of RGB pixels. Any errors will cout but will result in an
      * empty matrix (with no rows and no columns).
      *
-     * @param name of the filename to be opened and read as a matrix of pixels
+     * @param file  name of the filename to be opened and read as a matrix of pixels
     **/
-    void open(std::string);
+    void open(std::string file);
 
     /**
      * Saves the current image, represented by the matrix of pixels, as a
@@ -54,9 +53,9 @@ class Bitmap
      * is not forced but should be .bmp. Any errors will cout and will NOT 
      * attempt to save the file.
      *
-     * @param name of the filename to be written as a bmp image
+     * @param file  name of the filename to be written as a bmp image
     **/
-    void save(std::string);
+    void save(std::string file);
 
     /**
      * Validates whether or not the current matrix of pixels represents a
@@ -80,12 +79,10 @@ class Bitmap
      * pixels. Does not validate that the new matrix of pixels is a proper
      * image.
      *
-     * @param a matrix of pixels to represent a bitmap
+     * @param m  a matrix of pixels to represent a bitmap
     **/
-    void fromPixelMatrix(const PixelMatrix &);
+    void fromPixelMatrix(const PixelMatrix &m);
     
 };
-
-#include "bitmap.cpp"
 
 #endif

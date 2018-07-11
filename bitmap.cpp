@@ -4,6 +4,7 @@
 #include <fstream>
 #include <cstdlib>
 #include <cstdint>
+#include <cmath>
 
 typedef unsigned char uchar_t;
 
@@ -59,7 +60,7 @@ struct bmpfile_color_table
     uint8_t green;
     uint8_t blue;
     uint8_t reserved; ///< should be 0.
-}
+};
 
 
 /**
@@ -133,61 +134,60 @@ void Bitmap::open(std::string filename)
                           << "Bitmap only supports uncompressed images.\n";
             }
 
-            // Read the color table
-            bmpfile_color_table colors;
-            file.read((char*)(&colors), sizeof(colors));
-            if (colors.reserved != 0)
+            // Read the color tables (there are two for each color in the monochrome)
+            bmpfile_color_table color;
+            file.read((char*)(&color), sizeof(color));
+            if (color.reserved != 0)
             {
                 std::cout << filename << " does not have a good color palette for "
-                          << "monochrome display.\n"
+                          << "monochrome display.\n";
+            }
+            file.read((char*)(&color), sizeof(color));
+            if (color.reserved != 0)
+            {
+                std::cout << filename << " does not have a good color palette for "
+                          << "monochrome display.\n";
             }
 
+            // Move to the data
             file.seekg(header.bmp_offset);
+
+            // TODO: Clean up this code to make it more readable.
+
+            // traverse the number of bytes in a row of data
+            int traverse_bytes = dib_info.width / 8 + (dib_info.width % 8 != 0)? 1 : 0;
+            // Rows are padded so that they're always a multiple of 4 bytes
+            traverse_bytes += (traverse_bytes % 4 == 0)? 0 : 4 - (traverse_bytes % 4);
+            
+            char* bytes_row = new char[traverse_bytes];
 
             // Read the pixels for each row and column of Pixels in the image.
             for (int row = 0; row < dib_info.height; ++row)
             {
-                std::vector <Pixel> row_data;
+                std::vector<Pixel> row_data;
+                bool high;
+
+                file.read(bytes_row, traverse_bytes);
 
                 // In a monochrome image, each bit is a pixel.
                 // First we cover all bits except the ones inside the last byte.
                 for (int col = 0; col < dib_info.width / 8; ++col)
                 {
-                    uint8_t current_byte = file.get();
-
-                    for (int bit = 0; bit < 8; ++bit)
+                    for (int bit = 7; bit >= 0; --bit)
                     {
-                        bool high = (current_byte & (1 << bit)) != 0;
-                        row_data.push_back( Pixel(high) );
+                        high = ((bytes_row[col] & (1 << bit)) != 0);
+                        row_data.push_back(Pixel(high));
                     }
                 }
+
                 // Then we cover the bits we missed at the end.
-                if (dib_info.width % 8 != 0)
+                for (int rev_bit = 0; rev_bit < dib_info.width % 8; ++rev_bit)
                 {
-                    uint8_t last_byte = file.get();
-                    for (int bit = 0; bit < dib_info.width % 8; ++bit)
-                    {
-                        bool high = (current_byte & (1 << bit)) != 0;
-                        row_data.push_back( Pixel(high) );
-                    }
+                    high = (bytes_row[dib_info.width/8] & (1 << (7 - rev_bit))) != 0;
+                    row_data.push_back(Pixel(high));
                 }
 
-                // Rows are padded so that they're always a multiple of 4
-                // bytes. These lines skip the padding at the end of each row.
-                int bytes_traversed = dib_info.width / 8 + (dib_info.width % 8 != 0)? 1 : 0;
-                if (bytes_traversed % 4 != 0)
-                {
-                    file.seekg(4 - (bytes_traversed % 4), std::ios::cur);
-                }
-
-                if (flip)
-                {
-                    pixels.insert(pixels.begin(), row_data);
-                }
-                else
-                {
-                    pixels.push_back(row_data);
-                }
+                pixels.push_back(row_data);
             }
 
             file.close();
@@ -212,10 +212,11 @@ void Bitmap::save(std::string filename)
     if (file.fail())
     {
         std::cout << filename << " could not be opened for editing. "
-                  << "Is it already open by another program or is it read-only?\n";
+                  << "Is it already open by another program, "
+                  << "or is it read-only?\n";
         
     }
-    else if( !isImage() )
+    else if(!isImage())
     {
         std::cout << "Bitmap cannot be saved. It is not a valid image.\n";
     }
@@ -229,10 +230,14 @@ void Bitmap::save(std::string filename)
 
         bmpfile_header header = { 0 };
         header.bmp_offset = sizeof(bmpfile_magic) + sizeof(bmpfile_header)
-                + sizeof(bmpfile_dib_info) + sizeof(bmpfile_color_table);
-        // vv This line is suspect. Not sure if the compiler will optimize the "/32)*8"
-        header.file_size = header.bmp_offset
-                + (pixels[0].size() / 32) * 8 + (pixels[0].size() % 32 != 0)? 4 : 0;
+                + sizeof(bmpfile_dib_info) + 2 * sizeof(bmpfile_color_table);
+        
+        // TODO: vv These lines are lazy and bad. 
+        int bytes_per_row = 0;
+        for (int i = 0; i < pixels[0].size(); i += 32)
+            bytes_per_row += 4;
+        header.file_size = header.bmp_offset + bytes_per_row * pixels.size();
+
         file.write((char*)(&header), sizeof(header));
         bmpfile_dib_info dib_info = { 0 };
         dib_info.header_size = sizeof(bmpfile_dib_info);
@@ -244,40 +249,64 @@ void Bitmap::save(std::string filename)
         dib_info.bmp_byte_size = 0;
         dib_info.hres = 200;
         dib_info.vres = 200;
-        dib_info.num_colors = 1;
+        dib_info.num_colors = 2;
         dib_info.num_important_colors = 0;
         file.write((char*)(&dib_info), sizeof(dib_info));
 
+        // Color palettes. These can be changed later to something more...diverse
         bmpfile_color_table colors = { 0 };
         colors.red = 0;
         colors.green = 0;
         colors.blue = 0;
         colors.reserved = 0;
         file.write((char*)(&colors), sizeof(colors));
+        colors.red = 255;
+        colors.green = 255;
+        colors.blue = 255;
+        colors.reserved = 0;
+        file.write((char*)(&colors), sizeof(colors));
 
 
-        // TODO: Rewrite for monochrome!!
-        // 
-        // *-_8-*_8-*_88--8*_8--***-8*-8-**-8-*_-__
-        // 
         // Write each row and column of Pixels into the image file -- we write
         // the rows upside-down to satisfy the easiest BMP format.
-        for (int row = pixels.size() - 1; row >= 0; row--)
+        for (int row = pixels.size() - 1; row >= 0; --row)
         {
-            const std::vector <Pixel> & row_data = pixels[row];
+            const std::vector<Pixel>& row_data = pixels[row];
+
+            int bytes_written = 0;
+            int bit = 7;
+            char next_byte = '\0';
 
             for (int col = 0; col < row_data.size(); col++)
             {
-                const Pixel& pix = row_data[col];
+                next_byte += (row_data[col].on)? (1 << bit) : 0;
 
-                file.put((uchar_t)(pix.blue));
-                file.put((uchar_t)(pix.green));
-                file.put((uchar_t)(pix.red));
+                // file.put((uchar_t)(pix.blue));
+                // file.put((uchar_t)(pix.green));
+                // file.put((uchar_t)(pix.red));
+
+                if (bit > 0)
+                {
+                    --bit;
+                }
+                else
+                {
+                    file.put(next_byte);
+                    ++bytes_written;
+                    bit = 7;
+                    next_byte = '\0';
+                }
+            }
+
+            if (row_data.size() % 8 != 0)
+            {
+                file.put(next_byte);
+                ++bytes_written;
             }
 
             // Rows are padded so that they're always a multiple of 4
             // bytes. This line skips the padding at the end of each row.
-            for (int i = 0; i < row_data.size() % 4; i++)
+            for (int i = 0; i < 4 - bytes_written % 4; i++)
             {
                 file.put(0);
             }
@@ -300,27 +329,17 @@ bool Bitmap::isImage()
 {
     const int height = pixels.size();
 
-    if( height == 0 || pixels[0].size() == 0)
+    if (height == 0 || pixels[0].size() == 0)
     {
         return false;
     }
 
     const int width = pixels[0].size();
 
-    for(int row=0; row < height; row++)
+    for (int row = 0; row < height; row++)
     {
-        if( pixels[row].size() != width )
-        {
+        if (pixels[row].size() != width)
             return false;
-        }
-        for(int column=0; column < width; column++)
-        {
-            Pixel current = pixels[row][column];
-            if( current.red > MAX_RGB || current.red < MIN_RGB ||
-                  current.green > MAX_RGB || current.green < MIN_RGB ||
-                  current.blue > MAX_RGB || current.blue < MIN_RGB )
-                return false;
-        }
     }
     return true;
 }
